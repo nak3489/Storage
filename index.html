@@ -23,8 +23,10 @@
     // **********************************************
     // ตั้งค่าระบบตรงนี้ (สำคัญ!)
     // **********************************************
-    const LIFF_ID = "1655457282-5GVPJDAM"; 
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbznnvDkNMy4EdV-SH9DQcOwOxT9L2utQ4aBu-h3vTagQbx-P5y_CSyp6EWBXkr8ruWX/exec"; // << เอา URL Web App จากการ Deploy มาใส่ตรงนี้
+    const LIFF_ID = "1655457282-5GVPJDAM"; // ใส่ LIFF ID ของคุณ
+    
+    // 🔥 [ต้องแก้ไข] ใส่ URL Web App ที่ได้หลังจาก Deploy (เลือก Execute as me, Access: Anyone)
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxXbd6ceSD2ho2HvH3uLAdvdXTp8knxFZK3dSi2OqDnR-_lUiNrTqq6qIxE5pInMQdZ/exec"; 
     // **********************************************
   </script>
 
@@ -34,6 +36,7 @@
   </div>
 
   <div class="max-w-md mx-auto p-4 mt-2">
+    <!-- ฟอร์มฝากของ -->
     <form id="depositForm" class="space-y-6 block">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <label class="block text-gray-700 font-bold mb-3 text-lg">📸 รูปภาพ <span class="text-red-500">*</span></label>
@@ -54,6 +57,7 @@
       <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">ยืนยันการฝาก</button>
     </form>
 
+    <!-- ฟอร์มรับของ -->
     <form id="receiveForm" class="space-y-6 hidden">
       <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
         <label class="block text-gray-700 font-bold mb-2 text-lg">🔢 ItemID</label>
@@ -77,7 +81,7 @@
 
   <div id="loading" class="loading-overlay">
     <div class="w-16 h-16 border-4 border-gray-200 border-t-green-500 rounded-full animate-spin mb-4"></div>
-    <p>กำลังบันทึก...</p>
+    <p class="font-bold text-gray-600">กำลังบันทึกข้อมูล...</p>
   </div>
 
   <script>
@@ -136,8 +140,6 @@
             itemId: data.itemId || ""
           };
 
-          // ใช้ fetch ยิงข้อมูลไปหา Google Script (ใช้ mode: 'no-cors' เพื่อไม่ให้ติด Error แต่จะอ่าน response ไม่ได้)
-          // หรือใช้ท่ามาตรฐาน (redirect) แต่ในที่นี้เราใช้ fetch แบบ simple POST
           const response = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify(payload)
@@ -148,8 +150,13 @@
           document.getElementById('loading').classList.remove('active');
           
           if (result.status === 'success') {
-            Swal.fire({ title: 'สำเร็จ!', text: 'บันทึกข้อมูลเรียบร้อย', icon: 'success', timer: 2000, showConfirmButton: false })
-              .then(() => liff.closeWindow());
+            Swal.fire({ 
+                title: 'สำเร็จ!', 
+                text: 'บันทึกข้อมูลเรียบร้อย', 
+                icon: 'success', 
+                timer: 2000, 
+                showConfirmButton: false 
+            }).then(() => liff.closeWindow());
           } else {
             Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
           }
@@ -177,10 +184,9 @@
       const fileInput = document.getElementById('rec_image');
       const itemId = document.getElementById('rec_itemId').value.trim();
       if (!itemId) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุ ID', 'warning');
-      if (!fileInput.files.length) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาถ่ายรูป', 'warning');
+      if (!fileInput.files.length) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาถ่ายรูปเพื่อยืนยันการรับ', 'warning');
       submitData({ action: 'receive', itemId: itemId, fileInput: fileInput });
     });
   </script>
 </body>
 </html>
-
