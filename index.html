@@ -17,14 +17,14 @@
     .loading-overlay.active { visibility: visible; opacity: 1; }
   </style>
 </head>
-<body class="pb-10">
+<body class="pb-8">
 
   <script>
     // **********************************************
-    // ตั้งค่าระบบตรงนี้
+    // ตั้งค่าระบบตรงนี้ (สำคัญ!)
     // **********************************************
     const LIFF_ID = "1655457282-5GVPJDAM"; 
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwrQqdRehMKlO8CH2FUaalcozQGXv_rphUwdWyY7cBvEnyELa1A6Cq64gc3Hn4QIfE9/exec"; // << เอา URL จากการ Deploy มาใส่ตรงนี้
+    const GAS_API_URL = "https://script.google.com/macros/s/xxxxxxxxx/exec"; // << เอา URL Web App จากการ Deploy มาใส่ตรงนี้
     // **********************************************
   </script>
 
@@ -37,11 +37,19 @@
     <form id="depositForm" class="space-y-6 block">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <label class="block text-gray-700 font-bold mb-3 text-lg">📸 รูปภาพ <span class="text-red-500">*</span></label>
-        <input type="file" id="dep_image" accept="image/*" class="w-full">
+        <div class="relative w-full">
+          <input type="file" id="dep_image" accept="image/*" class="hidden" onchange="previewImage(this, 'dep_preview', 'dep_placeholder')">
+          <label for="dep_image" class="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-green-400 rounded-xl cursor-pointer hover:bg-green-50 transition bg-green-50/30">
+            <div id="dep_placeholder" class="flex flex-col items-center">
+              <span class="text-green-700 font-medium">กดเพื่อถ่ายรูป</span>
+            </div>
+            <img id="dep_preview" class="absolute w-full h-full object-contain rounded-xl hidden bg-white">
+          </label>
+        </div>
       </div>
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
-        <input type="text" id="dep_branch" placeholder="ระบุสาขา..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg">
-        <textarea id="dep_details" rows="3" placeholder="รายละเอียด..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg"></textarea>
+        <input type="text" id="dep_branch" placeholder="ระบุสาขา..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+        <textarea id="dep_details" rows="3" placeholder="รายละเอียด..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none"></textarea>
       </div>
       <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">ยืนยันการฝาก</button>
     </form>
@@ -49,11 +57,19 @@
     <form id="receiveForm" class="space-y-6 hidden">
       <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
         <label class="block text-gray-700 font-bold mb-2 text-lg">🔢 ItemID</label>
-        <input type="tel" id="rec_itemId" placeholder="เลข ID" class="w-full px-4 py-4 bg-blue-50 border-2 border-blue-100 rounded-xl text-center text-3xl font-bold text-blue-600">
+        <input type="tel" id="rec_itemId" placeholder="เลข ID" class="w-full px-4 py-4 bg-blue-50 border-2 border-blue-100 rounded-xl text-center text-3xl font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none">
       </div>
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <label class="block text-gray-700 font-bold mb-3 text-lg">📸 รูปหลักฐาน <span class="text-red-500">*</span></label>
-        <input type="file" id="rec_image" accept="image/*" class="w-full">
+        <div class="relative w-full">
+          <input type="file" id="rec_image" accept="image/*" class="hidden" onchange="previewImage(this, 'rec_preview', 'rec_placeholder')">
+          <label for="rec_image" class="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-cyan-400 rounded-xl cursor-pointer hover:bg-cyan-50 transition bg-cyan-50/30">
+            <div id="rec_placeholder" class="flex flex-col items-center">
+              <span class="text-cyan-700 font-medium">กดเพื่อถ่ายรูป</span>
+            </div>
+            <img id="rec_preview" class="absolute w-full h-full object-contain rounded-xl hidden bg-white">
+          </label>
+        </div>
       </div>
       <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">ยืนยันการรับของ</button>
     </form>
@@ -87,16 +103,25 @@
       }
     }
 
-    // Submit Logic (ใช้ Fetch API ยิงไปหา Google Script)
+    function previewImage(input, previewId, placeholderId) {
+      if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById(previewId).src = e.target.result;
+          document.getElementById(previewId).classList.remove('hidden');
+          document.getElementById(placeholderId).classList.add('hidden');
+        }
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
     async function submitData(data) {
       document.getElementById('loading').classList.add('active');
-      
       const file = data.fileInput.files[0];
       const reader = new FileReader();
       
       reader.onload = async function(e) {
         const base64Data = e.target.result.split(',')[1];
-        
         try {
           const profile = await liff.getProfile();
           const payload = {
@@ -111,8 +136,8 @@
             itemId: data.itemId || ""
           };
 
-          // ยิงข้อมูลไปหา GAS (ใช้ mode: 'no-cors' เพื่อเลี่ยงปัญหา Cross-Origin)
-          // หรือใช้ fetch ปกติ แล้วรอ text response
+          // ใช้ fetch ยิงข้อมูลไปหา Google Script (ใช้ mode: 'no-cors' เพื่อไม่ให้ติด Error แต่จะอ่าน response ไม่ได้)
+          // หรือใช้ท่ามาตรฐาน (redirect) แต่ในที่นี้เราใช้ fetch แบบ simple POST
           const response = await fetch(GAS_API_URL, {
             method: 'POST',
             body: JSON.stringify(payload)
@@ -139,21 +164,21 @@
 
     document.getElementById('depositForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      submitData({ 
-        action: 'deposit', 
-        branch: document.getElementById('dep_branch').value, 
-        details: document.getElementById('dep_details').value, 
-        fileInput: document.getElementById('dep_image') 
-      });
+      const fileInput = document.getElementById('dep_image');
+      const branch = document.getElementById('dep_branch').value.trim();
+      const details = document.getElementById('dep_details').value.trim();
+      if (!fileInput.files.length) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาถ่ายรูป', 'warning');
+      if (!branch) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุสาขา', 'warning');
+      submitData({ action: 'deposit', branch: branch, details: details, fileInput: fileInput });
     });
 
     document.getElementById('receiveForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      submitData({ 
-        action: 'receive', 
-        itemId: document.getElementById('rec_itemId').value, 
-        fileInput: document.getElementById('rec_image') 
-      });
+      const fileInput = document.getElementById('rec_image');
+      const itemId = document.getElementById('rec_itemId').value.trim();
+      if (!itemId) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุ ID', 'warning');
+      if (!fileInput.files.length) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาถ่ายรูป', 'warning');
+      submitData({ action: 'receive', itemId: itemId, fileInput: fileInput });
     });
   </script>
 </body>
