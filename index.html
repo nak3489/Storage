@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบฝาก-รับของ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Kanit', sans-serif; background-color: #f8fafc; }
+    .tab-btn { @apply flex-1 py-4 text-center font-bold text-gray-400 bg-white border-b-4 border-transparent cursor-pointer transition-all duration-300 text-lg; }
+    .tab-btn.active-deposit { @apply text-[#1DB446] border-[#1DB446] bg-green-50; }
+    .tab-btn.active-receive { @apply text-[#17A2B8] border-[#17A2B8] bg-cyan-50; }
+    .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+    .loading-overlay.active { visibility: visible; opacity: 1; }
+  </style>
+</head>
+<body class="pb-10">
+
+  <script>
+    // **********************************************
+    // ตั้งค่าระบบตรงนี้
+    // **********************************************
+    const LIFF_ID = "1655457282-5GVPJDAM"; 
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwrQqdRehMKlO8CH2FUaalcozQGXv_rphUwdWyY7cBvEnyELa1A6Cq64gc3Hn4QIfE9/exec"; // << เอา URL จากการ Deploy มาใส่ตรงนี้
+    // **********************************************
+  </script>
+
+  <div class="flex sticky top-0 z-50 shadow-md">
+    <div id="tab-deposit" onclick="switchTab('deposit')" class="tab-btn active-deposit">📦 ฝากของ</div>
+    <div id="tab-receive" onclick="switchTab('receive')" class="tab-btn">🎁 รับของ</div>
+  </div>
+
+  <div class="max-w-md mx-auto p-4 mt-2">
+    <form id="depositForm" class="space-y-6 block">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <label class="block text-gray-700 font-bold mb-3 text-lg">📸 รูปภาพ <span class="text-red-500">*</span></label>
+        <input type="file" id="dep_image" accept="image/*" class="w-full">
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-4">
+        <input type="text" id="dep_branch" placeholder="ระบุสาขา..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg">
+        <textarea id="dep_details" rows="3" placeholder="รายละเอียด..." class="w-full px-4 py-3 bg-gray-50 border rounded-lg"></textarea>
+      </div>
+      <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">ยืนยันการฝาก</button>
+    </form>
+
+    <form id="receiveForm" class="space-y-6 hidden">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
+        <label class="block text-gray-700 font-bold mb-2 text-lg">🔢 ItemID</label>
+        <input type="tel" id="rec_itemId" placeholder="เลข ID" class="w-full px-4 py-4 bg-blue-50 border-2 border-blue-100 rounded-xl text-center text-3xl font-bold text-blue-600">
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <label class="block text-gray-700 font-bold mb-3 text-lg">📸 รูปหลักฐาน <span class="text-red-500">*</span></label>
+        <input type="file" id="rec_image" accept="image/*" class="w-full">
+      </div>
+      <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">ยืนยันการรับของ</button>
+    </form>
+  </div>
+
+  <div id="loading" class="loading-overlay">
+    <div class="w-16 h-16 border-4 border-gray-200 border-t-green-500 rounded-full animate-spin mb-4"></div>
+    <p>กำลังบันทึก...</p>
+  </div>
+
+  <script>
+    async function main() {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) liff.login();
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('mode') === 'receive') switchTab('receive');
+    }
+    main();
+
+    function switchTab(mode) {
+      if (mode === 'deposit') {
+        document.getElementById('depositForm').classList.remove('hidden');
+        document.getElementById('receiveForm').classList.add('hidden');
+        document.getElementById('tab-deposit').classList.add('active-deposit');
+        document.getElementById('tab-receive').classList.remove('active-receive');
+      } else {
+        document.getElementById('depositForm').classList.add('hidden');
+        document.getElementById('receiveForm').classList.remove('hidden');
+        document.getElementById('tab-deposit').classList.remove('active-deposit');
+        document.getElementById('tab-receive').classList.add('active-receive');
+      }
+    }
+
+    // Submit Logic (ใช้ Fetch API ยิงไปหา Google Script)
+    async function submitData(data) {
+      document.getElementById('loading').classList.add('active');
+      
+      const file = data.fileInput.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = async function(e) {
+        const base64Data = e.target.result.split(',')[1];
+        
+        try {
+          const profile = await liff.getProfile();
+          const payload = {
+            action: data.action,
+            userId: profile.userId,
+            displayName: profile.displayName,
+            pictureUrl: profile.pictureUrl,
+            imageBase64: base64Data,
+            mimeType: file.type,
+            branch: data.branch || "",
+            details: data.details || "",
+            itemId: data.itemId || ""
+          };
+
+          // ยิงข้อมูลไปหา GAS (ใช้ mode: 'no-cors' เพื่อเลี่ยงปัญหา Cross-Origin)
+          // หรือใช้ fetch ปกติ แล้วรอ text response
+          const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          
+          const result = await response.json();
+
+          document.getElementById('loading').classList.remove('active');
+          
+          if (result.status === 'success') {
+            Swal.fire({ title: 'สำเร็จ!', text: 'บันทึกข้อมูลเรียบร้อย', icon: 'success', timer: 2000, showConfirmButton: false })
+              .then(() => liff.closeWindow());
+          } else {
+            Swal.fire('เกิดข้อผิดพลาด', result.message, 'error');
+          }
+
+        } catch (err) {
+          document.getElementById('loading').classList.remove('active');
+          Swal.fire('Error', 'ไม่สามารถเชื่อมต่อระบบได้: ' + err.message, 'error');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('depositForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitData({ 
+        action: 'deposit', 
+        branch: document.getElementById('dep_branch').value, 
+        details: document.getElementById('dep_details').value, 
+        fileInput: document.getElementById('dep_image') 
+      });
+    });
+
+    document.getElementById('receiveForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitData({ 
+        action: 'receive', 
+        itemId: document.getElementById('rec_itemId').value, 
+        fileInput: document.getElementById('rec_image') 
+      });
+    });
+  </script>
+</body>
+</html>
